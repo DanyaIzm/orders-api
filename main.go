@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
 
 	"github.com/danyaizm/orders-api/application"
 )
@@ -9,7 +11,10 @@ import (
 func main() {
 	app := application.New()
 
-	if err := app.Start(context.TODO()); err != nil {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	if err := app.Start(ctx); err != nil {
 		panic(err)
 	}
 }
