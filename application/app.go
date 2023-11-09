@@ -6,19 +6,24 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/danyaizm/orders-api/repository"
 	"github.com/redis/go-redis/v9"
 )
 
 type App struct {
-	router http.Handler
-	rdb    *redis.Client
+	router    http.Handler
+	rdb       *redis.Client
+	orderRepo repository.OrderRepo
 }
 
 func New() *App {
-	return &App{
-		router: loadRoutes(),
-		rdb:    redis.NewClient(&redis.Options{}),
+	app := &App{
+		rdb: redis.NewClient(&redis.Options{}),
 	}
+
+	app.loadRoutes()
+
+	return app
 }
 
 func (a *App) Start(ctx context.Context) error {

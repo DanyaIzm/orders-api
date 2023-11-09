@@ -107,7 +107,9 @@ func (r *RedisRepo) Update(ctx context.Context, order *model.Order) error {
 }
 
 func (r *RedisRepo) FindAll(ctx context.Context, page repository.FindAllPage) (*repository.FindResult, error) {
-	res := r.Client.SScan(ctx, "orders", uint64(page.Offset), "*", int64(page.Size))
+	res := r.Client.SScan(ctx, "orders", page.Offset, "*", int64(page.Size))
+
+	fmt.Println(page)
 
 	keys, cursor, err := res.Result()
 	if err != nil {
@@ -121,6 +123,8 @@ func (r *RedisRepo) FindAll(ctx context.Context, page repository.FindAllPage) (*
 		}, nil
 	}
 
+	fmt.Println(len(keys))
+
 	xs, err := r.Client.MGet(ctx, keys...).Result()
 	if err != nil {
 		return &repository.FindResult{}, fmt.Errorf("failed to get orders: %w", err)
@@ -129,10 +133,10 @@ func (r *RedisRepo) FindAll(ctx context.Context, page repository.FindAllPage) (*
 	orders := make([]model.Order, len(xs))
 
 	for i, x := range xs {
-		x := x.([]byte)
+		x := x.(string)
 
 		var order model.Order
-		if err := json.Unmarshal(x, &order); err != nil {
+		if err := json.Unmarshal([]byte(x), &order); err != nil {
 			return &repository.FindResult{}, fmt.Errorf("failed to unmarshal one of the results: %w", err)
 		}
 
