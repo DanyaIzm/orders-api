@@ -11,15 +11,15 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisRepo struct {
-	Client *redis.Client
+type OrderRepo struct {
+	client *redis.Client
 }
 
 func getOrderIDKey(id uint64) string {
 	return fmt.Sprintf("order:%d", id)
 }
 
-func (r *RedisRepo) Insert(ctx context.Context, order models.Order) error {
+func (r *OrderRepo) Insert(ctx context.Context, order models.Order) error {
 	data, err := json.Marshal(order)
 	if err != nil {
 		return fmt.Errorf("failed to encode order: %w", err)
@@ -27,7 +27,7 @@ func (r *RedisRepo) Insert(ctx context.Context, order models.Order) error {
 
 	key := getOrderIDKey(order.ID)
 
-	txn := r.Client.TxPipeline()
+	txn := r.client.TxPipeline()
 
 	res := txn.SetNX(ctx, key, string(data), 0)
 	if err := res.Err(); err != nil {
@@ -47,10 +47,10 @@ func (r *RedisRepo) Insert(ctx context.Context, order models.Order) error {
 	return nil
 }
 
-func (r *RedisRepo) FindByID(ctx context.Context, id uint64) (*models.Order, error) {
+func (r *OrderRepo) FindByID(ctx context.Context, id uint64) (*models.Order, error) {
 	key := getOrderIDKey(id)
 
-	value, err := r.Client.Get(ctx, key).Result()
+	value, err := r.client.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
 		return &models.Order{}, storage.ErrorNotExist
 	} else if err != nil {
@@ -65,10 +65,10 @@ func (r *RedisRepo) FindByID(ctx context.Context, id uint64) (*models.Order, err
 	return order, nil
 }
 
-func (r *RedisRepo) DeleteByID(ctx context.Context, id uint64) error {
+func (r *OrderRepo) DeleteByID(ctx context.Context, id uint64) error {
 	key := getOrderIDKey(id)
 
-	txn := r.Client.TxPipeline()
+	txn := r.client.TxPipeline()
 
 	err := txn.Del(ctx, key).Err()
 	if errors.Is(err, redis.Nil) {
@@ -91,7 +91,7 @@ func (r *RedisRepo) DeleteByID(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (r *RedisRepo) Update(ctx context.Context, order *models.Order) error {
+func (r *OrderRepo) Update(ctx context.Context, order *models.Order) error {
 	data, err := json.Marshal(order)
 	if err != nil {
 		return err
@@ -99,15 +99,15 @@ func (r *RedisRepo) Update(ctx context.Context, order *models.Order) error {
 
 	key := getOrderIDKey(order.ID)
 
-	if err := r.Client.SetXX(ctx, key, string(data), 0).Err(); err != nil {
+	if err := r.client.SetXX(ctx, key, string(data), 0).Err(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *RedisRepo) FindAll(ctx context.Context, page storage.FindAllPage) (*storage.FindResult, error) {
-	res := r.Client.SScan(ctx, "orders", page.Offset, "*", int64(page.Size))
+func (r *OrderRepo) FindAll(ctx context.Context, page storage.FindAllPage) (*storage.FindResult, error) {
+	res := r.client.SScan(ctx, "orders", page.Offset, "*", int64(page.Size))
 
 	fmt.Println(page)
 
@@ -125,7 +125,7 @@ func (r *RedisRepo) FindAll(ctx context.Context, page storage.FindAllPage) (*sto
 
 	fmt.Println(len(keys))
 
-	xs, err := r.Client.MGet(ctx, keys...).Result()
+	xs, err := r.client.MGet(ctx, keys...).Result()
 	if err != nil {
 		return &storage.FindResult{}, fmt.Errorf("failed to get orders: %w", err)
 	}

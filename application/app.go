@@ -7,22 +7,18 @@ import (
 	"time"
 
 	"github.com/danyaizm/orders-api/storage"
-	"github.com/redis/go-redis/v9"
 )
 
 type App struct {
-	router    http.Handler
-	rdb       *redis.Client
-	orderRepo storage.OrderRepo
-	config    *Config
+	router  http.Handler
+	storage storage.Storage
+	config  *Config
 }
 
-func New(config *Config) *App {
+func New(config *Config, storage storage.Storage) *App {
 	app := &App{
-		rdb: redis.NewClient(&redis.Options{
-			Addr: config.RedisAddress,
-		}),
-		config: config,
+		config:  config,
+		storage: storage,
 	}
 
 	app.loadRoutes()
@@ -35,15 +31,6 @@ func (a *App) Start(ctx context.Context) error {
 		Addr:    fmt.Sprintf("localhost:%d", a.config.ServerPort),
 		Handler: a.router,
 	}
-
-	if err := a.rdb.Ping(ctx).Err(); err != nil {
-		return fmt.Errorf("failed to connect to redis: %w", err)
-	}
-	defer func() {
-		if err := a.rdb.Close(); err != nil {
-			fmt.Println("failed to close redis: %w", err)
-		}
-	}()
 
 	fmt.Printf("Starting server at %s\n", server.Addr)
 
