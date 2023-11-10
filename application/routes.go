@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/danyaizm/orders-api/handlers"
-	"github.com/danyaizm/orders-api/repository/order"
+	"github.com/danyaizm/orders-api/storage/redisstorage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -25,7 +25,7 @@ func (a *App) loadRoutes() {
 
 func (a *App) loadOrderRoutes(router chi.Router) {
 	orderHandler := &handlers.Order{
-		Repo: &order.RedisRepo{
+		Repo: &redisstorage.RedisRepo{
 			Client: a.rdb,
 		},
 	}

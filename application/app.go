@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/danyaizm/orders-api/repository"
+	"github.com/danyaizm/orders-api/storage"
 	"github.com/redis/go-redis/v9"
 )
 
 type App struct {
 	router    http.Handler
 	rdb       *redis.Client
-	orderRepo repository.OrderRepo
+	orderRepo storage.OrderRepo
 	config    *Config
 }
 

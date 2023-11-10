@@ -1,4 +1,4 @@
-package order
+package redisstorage
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	model "github.com/danyaizm/orders-api/models"
-	"github.com/danyaizm/orders-api/repository"
+	"github.com/danyaizm/orders-api/models"
+	"github.com/danyaizm/orders-api/storage"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -19,7 +19,7 @@ func getOrderIDKey(id uint64) string {
 	return fmt.Sprintf("order:%d", id)
 }
 
-func (r *RedisRepo) Insert(ctx context.Context, order model.Order) error {
+func (r *RedisRepo) Insert(ctx context.Context, order models.Order) error {
 	data, err := json.Marshal(order)
 	if err != nil {
 		return fmt.Errorf("failed to encode order: %w", err)
@@ -47,17 +47,17 @@ func (r *RedisRepo) Insert(ctx context.Context, order model.Order) error {
 	return nil
 }
 
-func (r *RedisRepo) FindByID(ctx context.Context, id uint64) (*model.Order, error) {
+func (r *RedisRepo) FindByID(ctx context.Context, id uint64) (*models.Order, error) {
 	key := getOrderIDKey(id)
 
 	value, err := r.Client.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
-		return &model.Order{}, repository.ErrorNotExist
+		return &models.Order{}, storage.ErrorNotExist
 	} else if err != nil {
-		return &model.Order{}, fmt.Errorf("failed to fetch from redis by id: %w", err)
+		return &models.Order{}, fmt.Errorf("failed to fetch from redis by id: %w", err)
 	}
 
-	var order *model.Order
+	var order *models.Order
 	if err := json.Unmarshal([]byte(value), &order); err != nil {
 		return nil, fmt.Errorf("failed to unmarshall value: %w", err)
 	}
@@ -73,7 +73,7 @@ func (r *RedisRepo) DeleteByID(ctx context.Context, id uint64) error {
 	err := txn.Del(ctx, key).Err()
 	if errors.Is(err, redis.Nil) {
 		txn.Discard()
-		return repository.ErrorNotExist
+		return storage.ErrorNotExist
 	} else if err != nil {
 		txn.Discard()
 		return fmt.Errorf("failed to delete: %w", err)
@@ -91,7 +91,7 @@ func (r *RedisRepo) DeleteByID(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (r *RedisRepo) Update(ctx context.Context, order *model.Order) error {
+func (r *RedisRepo) Update(ctx context.Context, order *models.Order) error {
 	data, err := json.Marshal(order)
 	if err != nil {
 		return err
@@ -106,19 +106,19 @@ func (r *RedisRepo) Update(ctx context.Context, order *model.Order) error {
 	return nil
 }
 
-func (r *RedisRepo) FindAll(ctx context.Context, page repository.FindAllPage) (*repository.FindResult, error) {
+func (r *RedisRepo) FindAll(ctx context.Context, page storage.FindAllPage) (*storage.FindResult, error) {
 	res := r.Client.SScan(ctx, "orders", page.Offset, "*", int64(page.Size))
 
 	fmt.Println(page)
 
 	keys, cursor, err := res.Result()
 	if err != nil {
-		return &repository.FindResult{}, fmt.Errorf("failed to fetch all order keys from set: %w", err)
+		return &storage.FindResult{}, fmt.Errorf("failed to fetch all order keys from set: %w", err)
 	}
 
 	if len(keys) == 0 {
-		return &repository.FindResult{
-			Orders: []model.Order{},
+		return &storage.FindResult{
+			Orders: []models.Order{},
 			Cursor: cursor,
 		}, nil
 	}
@@ -127,23 +127,23 @@ func (r *RedisRepo) FindAll(ctx context.Context, page repository.FindAllPage) (*
 
 	xs, err := r.Client.MGet(ctx, keys...).Result()
 	if err != nil {
-		return &repository.FindResult{}, fmt.Errorf("failed to get orders: %w", err)
+		return &storage.FindResult{}, fmt.Errorf("failed to get orders: %w", err)
 	}
 
-	orders := make([]model.Order, len(xs))
+	orders := make([]models.Order, len(xs))
 
 	for i, x := range xs {
 		x := x.(string)
 
-		var order model.Order
+		var order models.Order
 		if err := json.Unmarshal([]byte(x), &order); err != nil {
-			return &repository.FindResult{}, fmt.Errorf("failed to unmarshal one of the results: %w", err)
+			return &storage.FindResult{}, fmt.Errorf("failed to unmarshal one of the results: %w", err)
 		}
 
 		orders[i] = order
 	}
 
-	return &repository.FindResult{
+	return &storage.FindResult{
 		Orders: orders,
 		Cursor: cursor,
 	}, nil

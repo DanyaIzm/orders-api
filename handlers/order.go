@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/danyaizm/orders-api/models"
-	"github.com/danyaizm/orders-api/repository"
+	"github.com/danyaizm/orders-api/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
 type Order struct {
-	Repo repository.OrderRepo
+	Repo storage.OrderRepo
 }
 
 func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +69,7 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := o.Repo.FindAll(r.Context(), repository.FindAllPage{
+	res, err := o.Repo.FindAll(r.Context(), storage.FindAllPage{
 		Size:   50,
 		Offset: cursor,
 	})
@@ -105,7 +105,7 @@ func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	order, err := o.Repo.FindByID(r.Context(), id)
-	if errors.Is(err, repository.ErrorNotExist) {
+	if errors.Is(err, storage.ErrorNotExist) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
@@ -140,7 +140,7 @@ func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	order, err := o.Repo.FindByID(r.Context(), id)
-	if errors.Is(err, repository.ErrorNotExist) {
+	if errors.Is(err, storage.ErrorNotExist) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
@@ -207,7 +207,7 @@ func (o *Order) DeleteByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := o.Repo.DeleteByID(r.Context(), id); errors.Is(err, repository.ErrorNotExist) {
+	if err := o.Repo.DeleteByID(r.Context(), id); errors.Is(err, storage.ErrorNotExist) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
